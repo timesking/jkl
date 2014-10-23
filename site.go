@@ -156,7 +156,7 @@ func (s *Site) DeployToQiniu(key, secret, bucket string) error {
 
 		key := filepath.ToSlash(rel)
 		policy := q6rs.PutPolicy{
-			Scope:   bucket,
+			Scope:   bucket + ":" + key,
 			Expires: 60,
 		}
 		uptoken := policy.Token(nil)
