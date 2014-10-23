@@ -42,7 +42,7 @@ func ParseConfig(path string) (Config, error) {
 }
 
 func parseConfig(data []byte) (Config, error) {
-	conf := map[string] interface{} { }
+	conf := map[string]interface{}{}
 	err := goyaml.Unmarshal(data, &conf)
 	if err != nil {
 		return nil, err
@@ -76,5 +76,26 @@ func parseDeployConfig(data []byte) (*DeployConfig, error) {
 		return nil, err
 	}
 
+	return &conf, nil
+}
+
+// DeployConfig represents the key-value data in the _jekyll_qiniu.yml file
+// used for deploying a website to QiniuCloudStorage.
+type Deploy76Config struct {
+	Key    string `access_key`
+	Secret string `secret_key`
+	Bucket string `bucket`
+}
+
+func ParseDeploy76Config(path string) (*Deploy76Config, error) {
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	conf := Deploy76Config{}
+	err = goyaml.Unmarshal(b, &conf)
+	if err != nil {
+		return nil, err
+	}
 	return &conf, nil
 }

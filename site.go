@@ -3,6 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
+	q6cfg "github.com/qiniu/api/conf"
+	q6io "github.com/qiniu/api/io"
+	q6rs "github.com/qiniu/api/rs"
 	"io/ioutil"
 	"launchpad.net/goamz/aws"
 	"launchpad.net/goamz/s3"
@@ -118,13 +121,55 @@ func (s *Site) Deploy(user, pass, url string) error {
 			return err
 		}
 
+		key := filepath.ToSlash(rel)
+
 		// try to upload the file ... sometimes this fails due to amazon
 		// issues. If so, we'll re-try
-		if err := b.Put(rel, content, typ, s3.PublicRead); err != nil {
+		if err := b.Put(key, content, typ, s3.PublicRead); err != nil {
 			time.Sleep(100 * time.Millisecond) // sleep so that we don't immediately retry
-			return b.Put(rel, content, typ, s3.PublicRead)
+			return b.Put(key, content, typ, s3.PublicRead)
 		}
 
+		// file upload was a success, return nil
+		return nil
+	}
+
+	return filepath.Walk(s.Dest, walker)
+}
+
+// Deploys a site to QiniuCloudStorage.
+func (s *Site) DeployToQiniu(key, secret, bucket string) error {
+	q6cfg.ACCESS_KEY = key
+	q6cfg.SECRET_KEY = secret
+
+	// walks _site directory and uploads file to QiniuCloudStorage
+	walker := func(fn string, fi os.FileInfo, err error) error {
+		if fi.IsDir() {
+			return nil
+		}
+
+		rel, _ := filepath.Rel(s.Dest, fn)
+		logf(MsgUploadFile, rel)
+		if err != nil {
+			return err
+		}
+
+		key := filepath.ToSlash(rel)
+		policy := q6rs.PutPolicy{
+			Scope:   bucket,
+			Expires: 60,
+		}
+		uptoken := policy.Token(nil)
+
+		var ret q6io.PutRet
+		var extra = &q6io.PutExtra{}
+
+		// try to upload the file ... sometimes this fails due to QiniuCloudStorage
+		// issues. If so, we'll re-try
+		if err := q6io.PutFile(nil, &ret, uptoken, key, fn, extra); err != nil {
+			time.Sleep(100 * time.Millisecond) // sleep so that we don't immediately retry
+			return q6io.PutFile(nil, &ret, uptoken, key, fn, extra)
+		}
 		// file upload was a success, return nil
 		return nil
 	}

@@ -43,6 +43,21 @@ var (
 	// s3 bucket name
 	s3bucket = flag.String("s3_bucket", "", "")
 
+	// s3 config
+	s3config = flag.String("s3-config", "", "")
+
+	// deploys the website to QiniuCloudStorage
+	deploy76 = flag.Bool("qiniu", false, "")
+
+	// qiniu access key
+	q6key = flag.String("qiniu-key", "", "")
+
+	// qiniu secret key
+	q6secret = flag.String("qiniu-secret", "", "")
+
+	// qiniu bucket name
+	q6bucket = flag.String("qiniu-bucket", "", "")
+
 	// runs Jekyll with verbose output if True
 	verbose = flag.Bool("verbose", false, "")
 
@@ -115,6 +130,30 @@ func main() {
 		}
 
 		if err := site.Deploy(conf.Key, conf.Secret, conf.Bucket); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
+
+	// Deploys the static website to QiniuCloudStorage
+	if *deploy76 {
+
+		var conf *Deploy76Config
+		// Read the Qiniu configuration details if not provided as
+		// command line
+		if *q6key == "" || *q6secret == "" || *q6bucket == "" {
+			path := filepath.Join(site.Src, "_jekyll_qiniu.yml")
+			conf, err = ParseDeploy76Config(path)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		} else {
+			// else use the command line args
+			conf = &Deploy76Config{*q6key, *q6secret, *q6bucket}
+		}
+
+		if err := site.DeployToQiniu(conf.Key, conf.Secret, conf.Bucket); err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
@@ -226,6 +265,10 @@ var usage = func() {
       --s3_key         aws access key use for s3 authentication
       --s3_secret      aws secret key use for s3 authentication
       --s3_bucket      name of the s3 bucket
+      --qiniu          copies the _site directory to Qiniu.com
+      --qiniu-key access key use for qiniu authentication
+      --qiniu-secret secret key use for qiniu authentication
+      --qiniu-bucket name of the qiniu bucket      
   -v, --verbose        runs Jekyll with verbose output
   -h, --help           display this help and exit
 
